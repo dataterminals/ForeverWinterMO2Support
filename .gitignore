@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# MO2 / mod artifacts that shouldn't live in the repo
+*.pak
+*.utoc
+*.ucas
+*.sig
