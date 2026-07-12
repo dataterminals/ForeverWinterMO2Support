@@ -46,6 +46,12 @@ _LOGICMODS_SUBFOLDER = "LogicMods"  # UE4SS Blueprint / "Logic" mods
 # IoStore (Zen) mod payloads travel as a trio sharing one base name.
 _IOSTORE_EXTS = (".pak", ".utoc", ".ucas")
 
+# Placeholder data directory (relative to the game root). The plain USVFS
+# overlay is aimed here so it does nothing useful; mappings() does the real,
+# load-order-aware placement. MO2 errors if this directory is missing, so the
+# plugin creates it — it stays empty and can be deleted any time.
+_DATA_PLACEHOLDER = "_ROOT"
+
 
 class TheForeverWinterModDataChecker(BasicModDataChecker):
     """Validates archive layout and strips junk. Placement into the game is done
@@ -103,8 +109,9 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
     # Placeholder: the plain overlay is intentionally aimed at a dead path so it
     # does nothing; mappings() below performs the real, load-order-aware
     # placement into Content\Paks\Mods. (Also avoids MO2 scanning the ~60 GB
-    # Content\Paks folder.)
-    GameDataPath = "_ROOT"
+    # Content\Paks folder.) The folder is auto-created in mappings() because MO2
+    # errors when its data directory does not exist.
+    GameDataPath = _DATA_PLACEHOLDER
 
     GameDocumentsDirectory = "%USERPROFILE%/AppData/Local/ForeverWinter"
     GameIniFiles = ["%GAME_DOCUMENTS%/Saved/Config/Windows/GameUserSettings.ini"]
@@ -153,6 +160,20 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
                 yield mods_parent / name
 
     def mappings(self) -> "List[mobase.Mapping]":
+        # gamePath can be unset during early MO2 refreshes — do nothing then
+        # (also avoids creating _ROOT in the wrong place).
+        if not getattr(self, "_gamePath", ""):
+            return []
+
+        # MO2 opens the data directory (the _ROOT placeholder) and errors if it
+        # is missing. Ensure it exists; it stays empty.
+        try:
+            (Path(self.gameDirectory().absolutePath()) / _DATA_PLACEHOLDER).mkdir(
+                exist_ok=True
+            )
+        except OSError:
+            pass
+
         mods_dir = self._paks_dir() / _MODS_SUBFOLDER
         logic_dir = self._paks_dir() / _LOGICMODS_SUBFOLDER
         mod_paths = list(self._active_mod_paths())
