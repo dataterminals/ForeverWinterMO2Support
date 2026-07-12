@@ -11,8 +11,31 @@ demonstrably work through MO2, with load order and a clean install story."
       nesting, shipping exe + EOS wrapper paths, `Content\Paks` data root, save /
       ini / documents locations, signed paks.
 - [x] `TheForeverWinterModDataChecker` normalises Nexus archives into `Mods\`.
-- [ ] **Nothing below this line has been validated by actually launching the
-      game through MO2 yet.**
+- [x] **Validated end-to-end on 2026-07-12 — it works.** See results below.
+
+## Validation results (2026-07-12)
+
+Ran Phases 1–3 on the live install. Outcome: **a content asset-replacement mod,
+enabled in MO2, renders in-game.** The full pipeline (detect → plugin → install
+to `Mods\` → shipping-exe launch → signature bypass → USVFS overlay → in-game) is
+proven.
+
+Confirmed facts (previously open questions):
+
+- **Launch target:** the **shipping exe launches directly under MO2** and boots
+  fine — EOS/entitlement did **not** block it. `GameBinary` (shipping) stays the
+  default; the EOS-wrapper entry is just a fallback we didn't need.
+- **`GameDataPath = Content/Paks` is fine for MO2 itself** — MO2 handled the large
+  data dir and settled to ~35 MB / Responding once launch finished.
+- **The slow/"frozen" launch was the Root Builder plugin**, not this plugin. Its
+  log showed `Generating root mod build data` / `Updating cache` / `Checking for
+  updates to backup files`, churning the ~60 GB game folder before the game
+  started. See Phase 4 — for TFW (manual bypass, no root-mods) Root Builder has
+  nothing useful to do and should be excluded/disabled for this instance.
+
+Still to do: the negative-control check (launch from Steam → confirm mod is
+absent, proving nothing was written to the game folder) and the Root Builder
+cleanup.
 
 ## Phase 1 — Plugin loads & game is detected
 

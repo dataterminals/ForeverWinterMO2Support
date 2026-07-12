@@ -11,9 +11,13 @@ manage TFW content-pak mods through its virtual file system, so you get
 profiles, one-click enable/disable, and non-destructive installs without ever
 copying files into the game folder.
 
-> **Status:** `v0.1.0` — scaffold. The plugin loads the game into MO2 and installs
-> content pak mods via USVFS. The signed-pak workflow and launch-injection path
-> still need live validation on your machine — see [`docs/PLAN.md`](docs/PLAN.md).
+> **Status:** `v0.1.0` — **validated working (2026-07-12).** A content asset-
+> replacement mod enabled in MO2 renders in-game: detect → install to `Mods\` →
+> shipping-exe launch → signature bypass → USVFS overlay → in-game. The shipping
+> exe launches directly under MO2 (EOS does not block it). Known rough edge: if
+> you have the **Root Builder** plugin installed, it can make the first launch
+> very slow by caching the whole game folder — see
+> [`docs/PLAN.md`](docs/PLAN.md#phase-4--binaries-payload-via-root-builder-optional-quality-of-life).
 
 ---
 
