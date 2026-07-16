@@ -32,7 +32,7 @@ import mobase
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from PyQt6.QtCore import QFileInfo
+from PyQt6.QtCore import QDir, QFileInfo
 
 from ..basic_features import BasicModDataChecker, GlobPatterns
 from ..basic_game import BasicGame
@@ -255,20 +255,28 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
             except OSError:
                 pass
 
+    def dataDirectory(self) -> QDir:
+        # MO2 opens this directory as soon as it resolves the game path — ~57ms
+        # after, and long before it ever calls mappings() — so creating _ROOT
+        # there left every startup logging
+        # "failed to open directory ...\_ROOT: ObjectNamenotfound (0xc0000034)".
+        # Creating it here means it exists whenever anything asks for it.
+        #
+        # The guard is load-bearing: gameDirectory() is QDir(self._gamePath), so
+        # with no game path set this resolves relative to the working directory
+        # and would strew _ROOT next to ModOrganizer.exe.
+        directory = super().dataDirectory()
+        if self._gamePath:
+            try:
+                Path(directory.absolutePath()).mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
+        return directory
+
     def mappings(self) -> "List[mobase.Mapping]":
-        # gamePath can be unset during early MO2 refreshes — do nothing then
-        # (also avoids creating _ROOT in the wrong place).
+        # gamePath can be unset during early MO2 refreshes — do nothing then.
         if not getattr(self, "_gamePath", ""):
             return []
-
-        # MO2 opens the data directory (the _ROOT placeholder) and errors if it
-        # is missing. Ensure it exists; it stays empty.
-        try:
-            (Path(self.gameDirectory().absolutePath()) / _DATA_PLACEHOLDER).mkdir(
-                exist_ok=True
-            )
-        except OSError:
-            pass
 
         mods_dir = self._paks_dir() / _MODS_SUBFOLDER
         logic_dir = self._paks_dir() / _LOGICMODS_SUBFOLDER
