@@ -103,12 +103,27 @@ Steam. This is the make-or-break milestone.
 
 **Goal:** make MO2's left-pane priority control pak mount order.
 
-- Implement `IPluginFileMapper.mappings()` (FF7 Remake pattern) to deploy each
-  enabled mod's `.pak/.utoc/.ucas` into `Content\Paks\Mods\` with a numeric
-  filename prefix derived from MO2 priority — preserving the shared base name
-  across the trio.
-- Until then, document naming-based ordering (`_P` suffix / prefixes) as the
-  supported mechanism.
+✅ **Done 2026-07-16, and confirmed in-game.** `IPluginFileMapper.mappings()` deploys
+each enabled mod's trio into `Content\Paks\Mods\` as `<Name>_<N>_P.*`, `N` = MO2
+priority + 1, preserving the shared base name.
+
+> ⚠️ **The original plan here was wrong and cost a day.** It said "numeric filename
+> prefix (FF7 Remake pattern)". A prefix is **inert** — UE never reads a leading
+> number. Every prefixed mod ties at Order 103 and the winner falls to a tiebreak
+> favouring the alphabetically *lowest* name, i.e. the opposite of the intent. The FF7
+> Remake plugin is not a precedent: it is a **legacy PakFile** game (its mapper filters
+> `.pak` only and never touches `.utoc`/`.ucas`), where ascending prefixes genuinely do
+> work. Copying it to an IoStore game does not.
+>
+> The lever that works is the chunk-version token between the last two underscores of
+> `*_P.pak`. See [`ARCHITECTURE.md`](ARCHITECTURE.md#load-order).
+
+Evidence: two mods carrying the same package (`ExportBundleData 6f710c98…`), winner
+read from the live in-memory table via TFWWorkbench's `DumpDataTables`.
+`ZZ_ConflictTestB_7_P` (Order 803) beat `ZZ_ConflictTestA_6_P` (Order 703), 48 rows to
+0, *despite* B mounting first and losing the tiebreak. Earlier, with the prefix build:
+`03_AllSkills_P` beat `06_`/`07_`, and `05_A` beat `06_B` — both exactly what "all tied,
+lowest name wins" predicts.
 
 ## Phase 6 — Polish & release
 

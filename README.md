@@ -77,9 +77,12 @@ mod id 57). If you also want Blueprint/Lua mods, install a UE5.4-capable
   `Mods\` folder so they virtualize to `Content\Paks\Mods\` at runtime.
 - **Always launch the game through MO2.** USVFS is process-local: a game started
   from Steam or Explorer sees a stock, unmodded install.
-- **Load order is naming-based, not left-pane-based** (a UE limitation, not an MO2
-  one). Conflicting paks resolve by pak name / the `_P` patch suffix. See
-  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#load-order).
+- **MO2's left-pane priority controls pak load order** as of v0.2.0 — drag a mod
+  higher and it wins conflicts. Paks deploy as `<Name>_<N>_P.*` where `N` comes from
+  MO2 priority, which is the one part of a pak's filename UE actually reads. Verified
+  in-game 2026-07-16. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#load-order) —
+  and note a numeric *prefix* does nothing at all, which is what earlier builds
+  (and most community advice) get wrong.
 
 ## Layout
 

@@ -55,9 +55,17 @@ direct inspection of the local install.
 - Signed/encrypted games: AES-256 encrypts the pak index, RSA signs paks; a
   hook-based **signature-check bypass** loaded via a proxy DLL (dsound/version)
   permits unsigned paks. <https://www.nexusmods.com/site/mods/1416>
-- **No real load order** for loose paks — mount order is by name / `_P` suffix /
-  numeric prefixes, not the MO2 left pane. (Oblivion Remastered's plugin loads in
-  reverse-alphabetical order and numbers pak groups to force order.)
+- **Load order for loose paks is real, but the community's model of it is wrong.**
+  ~~mount order is by name / `_P` suffix / numeric prefixes~~ — corrected 2026-07-16
+  against UE 5.4 source and confirmed in-game. UE reads exactly one part of a pak's
+  name: the token between the last two underscores of `*_P.pak`, which sets
+  `ChunkVersionNumber` and thus mount `Order` (`PakOrder += 100 * ChunkVersionNumber`).
+  A **numeric prefix is inert** — every prefixed mod ties at Order 103, and the winner
+  falls to a tiebreak that favours the alphabetically *lowest* name (discovery sorts
+  descending; both resolvers prefer the last-mounted container). That tiebreak is very
+  likely what "reverse-alphabetical ordering" folklore is actually describing — it is
+  a *tiebreak*, not the rule, and it silently stops applying the moment any mod's name
+  ends in `_<digits>_P`. See [`ARCHITECTURE.md`](ARCHITECTURE.md#load-order).
 
 ## The Forever Winter specifics
 

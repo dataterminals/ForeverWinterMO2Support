@@ -84,16 +84,42 @@ noted in the plan but unproven for a signature-check proxy.
 recommends launching it directly). `executables()` also exposes the EOS wrapper
 for the case where a direct shipping launch is blocked by entitlement checks.
 
-## <a name="load-order"></a>Load order — the honest version
+## <a name="load-order"></a>Load order
 
-Loose IoStore paks have **no MO2-driven load order**. UE mounts paks by name;
-MO2's left-pane priority does *not* translate into pak mount priority. Conflicts
-between two paks that touch the same asset are resolved by:
+**MO2's left-pane priority controls pak mount order as of v0.2.0.** `mappings()`
+deploys each enabled mod's trio as `<Name>_<N>_P.{pak,utoc,ucas}` where
+`N = MO2 priority + 1`. Higher priority → higher `N` → higher mount Order → wins.
 
-- the **`_P` patch suffix** (a `_P` pak mounts over non-`_P` paks), and
-- **alphabetical / numeric-prefix** naming.
+The filename is the only channel to the engine, and it reads exactly one part of
+it. UE derives a pak's Order from:
 
-A future enhancement (see [`docs/PLAN.md`](PLAN.md)) can bridge MO2 priority →
-pak mount order by deploying each enabled mod's paks with a numeric filename
-prefix via `IPluginFileMapper` (the approach the FF7 Remake plugin uses). Until
-then: **rename conflicting paks** rather than relying on the MO2 order.
+- the **path bucket** — everything under `Content\Paks\` is `3`; and
+- for a pak ending `_P.pak`, the **token between the last two underscores**: if it
+  is numeric and ≥ 1, `ChunkVersionNumber = N + 1`, otherwise `1`. Then
+  `PakOrder += 100 * ChunkVersionNumber`, and that same value is handed to the
+  IoStore container mount — so the `.pak` name decides `.utoc` Order.
+
+So `Foo_5_P.pak` lands at Order 603, and beats `Foo_2_P.pak` at 303.
+
+> ### A numeric PREFIX does nothing. It never did.
+>
+> `03_AllSkills_P.pak` parses the token `"AllSkills"` — not numeric — and lands at
+> Order **103**, identical to `07_Foo_P.pak`. Every prefixed mod ties, and the winner
+> falls to a tiebreak: pak discovery sorts **descending**
+> (`FoundPakFiles.Sort(TGreater<FString>())`), and both resolvers favour the
+> **last-mounted** container, so the alphabetically **lowest** name wins — the exact
+> opposite of what a prefix scheme intends.
+>
+> Measured 2026-07-16, all carrying the same package, winner read from the live table
+> via TFWWorkbench's `DumpDataTables`: `03_AllSkills_P` beat `06_`/`07_` fixtures, and
+> `05_A` beat `06_B`. **The prefix controlled nothing while appearing to work.**
+> Do not reintroduce it — and do not copy the FF7 Remake plugin's ascending prefix
+> here: that is a *legacy PakFile* game, where the rule genuinely differs.
+
+**Confirmed in-game**, same day: `ZZ_ConflictTestB_7_P` (Order 803) beat
+`ZZ_ConflictTestA_6_P` (Order 703), 48 rows to 0 — *despite* B sorting alphabetically
+later, so it mounted first and lost the tiebreak. Only Order can produce that.
+
+Mechanism verified against UE 5.4 source (`FPakPlatformFile::Mount`,
+`FFileIoStore::Mount`/`Resolve`). Blueprint mods under `LogicMods\` are left alone —
+no `_P`, no number; UE4SS orders those itself.

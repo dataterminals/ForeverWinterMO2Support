@@ -30,12 +30,19 @@
 # chunk-version token in "*_<N>_P.pak". Higher MO2 priority => higher N => higher
 # mount Order => wins conflicts. See _iostore_name() for the derivation.
 #
+# CONFIRMED IN-GAME 2026-07-16. Two mods carrying the same package, winner read from
+# the live table via TFWWorkbench's DumpDataTables:
+#   ZZ_ConflictTestB_7_P (Order 803) beat ZZ_ConflictTestA_6_P (Order 703) — 48 rows
+#   to 0 — even though B sorts alphabetically LATER, so it mounts FIRST and loses the
+#   tiebreak. Only Order can produce that, so the chain MO2 priority -> _<N>_P ->
+#   ChunkVersionNumber -> PakOrder -> IoStore order is real on this binary.
+#
 # v0.2.0 used a zero-padded numeric PREFIX (00_, 01_, ...) on the theory that a
-# higher number mounts later and wins. That was wrong twice over: the engine never
-# reads a leading number (so every mod tied at Order 103), and the tiebreak that
-# actually decided it favours the alphabetically LOWEST name — the exact opposite.
-# Measured 2026-07-16: 03_AllSkills_P beat both 06_ and 07_ fixtures, and 05_A beat
-# 06_B, with all of them carrying the same package. Do not reintroduce a prefix.
+# higher number mounts later and wins. It was not backwards, it was INERT: the engine
+# never reads a leading number, so every mod tied at Order 103 and the winner fell to
+# a tiebreak favouring the alphabetically LOWEST name. Measured the same day:
+# 03_AllSkills_P beat both 06_ and 07_ fixtures, and 05_A beat 06_B. The prefix
+# controlled nothing while appearing to. DO NOT REINTRODUCE A PREFIX.
 
 import mobase
 from pathlib import Path
