@@ -44,6 +44,14 @@ Get the Signature Bypass from Nexus (The Forever Winter → *Signature Bypass*,
 mod id 57). If you also want Blueprint/Lua mods, install a UE5.4-capable
 **RE-UE4SS** build into the same `Binaries\Win64` folder.
 
+> **Running UE4SS / TFWWorkbench?** Read
+> [`docs/UE4SS-TFWWORKBENCH.md`](docs/UE4SS-TFWWORKBENCH.md) first. **Root Builder must
+> be enabled** — older advice in `docs/PLAN.md` said to disable it, which is correct for
+> content paks only and wrong once UE4SS is in play; with it off, UE4SS and TFWWorkbench
+> deploy nothing and log nothing. TFWWorkbench also cannot create its own directories
+> under MO2, but as of v0.2.0 the plugin pre-creates its `DataTable\` tree in Overwrite
+> for you. Verified working 2026-07-16.
+
 ---
 
 ## Install
@@ -69,9 +77,12 @@ mod id 57). If you also want Blueprint/Lua mods, install a UE5.4-capable
   `Mods\` folder so they virtualize to `Content\Paks\Mods\` at runtime.
 - **Always launch the game through MO2.** USVFS is process-local: a game started
   from Steam or Explorer sees a stock, unmodded install.
-- **Load order is naming-based, not left-pane-based** (a UE limitation, not an MO2
-  one). Conflicting paks resolve by pak name / the `_P` patch suffix. See
-  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#load-order).
+- **MO2's left-pane priority controls pak load order** as of v0.2.0 — drag a mod
+  higher and it wins conflicts. Paks deploy as `<Name>_<N>_P.*` where `N` comes from
+  MO2 priority, which is the one part of a pak's filename UE actually reads. Verified
+  in-game 2026-07-16. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#load-order) —
+  and note a numeric *prefix* does nothing at all, which is what earlier builds
+  (and most community advice) get wrong.
 
 ## Layout
 
@@ -81,6 +92,7 @@ mod id 57). If you also want Blueprint/Lua mods, install a UE5.4-capable
 | [`scripts/install-plugin.ps1`](scripts/install-plugin.ps1) | Copy the plugin into your MO2 install(s) |
 | [`docs/PLAN.md`](docs/PLAN.md) | Phased build plan, open questions, test checklist |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How MO2 + USVFS + UE5 + TFW fit; design decisions |
+| [`docs/UE4SS-TFWWORKBENCH.md`](docs/UE4SS-TFWWORKBENCH.md) | Running UE4SS + TFWWorkbench under MO2 — two silent prerequisites |
 | [`docs/RESEARCH.md`](docs/RESEARCH.md) | Sourced research notes behind the design |
 
 ## Credits & prior art

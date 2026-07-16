@@ -33,6 +33,15 @@ Confirmed facts (previously open questions):
   started. See Phase 4 — for TFW (manual bypass, no root-mods) Root Builder has
   nothing useful to do and should be excluded/disabled for this instance.
 
+  > ⚠️ **Superseded 2026-07-16 — do not follow the last sentence above if you use
+  > UE4SS.** It holds *only* for a content-paks-only setup. UE4SS, TFWWorkbench and
+  > the Signature Bypass are all `Root\` mods, so once any of them is installed
+  > **Root Builder is mandatory** — and with it disabled they deploy nothing while
+  > logging nothing. That cost a multi-hour debugging session on 2026-07-16.
+  > The right fix for the caching cost is Phase 4 step 3 (exclusions for
+  > `Content\Paks`), not disabling the plugin. See
+  > [`UE4SS-TFWWORKBENCH.md`](UE4SS-TFWWORKBENCH.md).
+
 Still to do: the negative-control check (launch from Steam → confirm mod is
 absent, proving nothing was written to the game folder) and the Root Builder
 cleanup.
@@ -94,12 +103,27 @@ Steam. This is the make-or-break milestone.
 
 **Goal:** make MO2's left-pane priority control pak mount order.
 
-- Implement `IPluginFileMapper.mappings()` (FF7 Remake pattern) to deploy each
-  enabled mod's `.pak/.utoc/.ucas` into `Content\Paks\Mods\` with a numeric
-  filename prefix derived from MO2 priority — preserving the shared base name
-  across the trio.
-- Until then, document naming-based ordering (`_P` suffix / prefixes) as the
-  supported mechanism.
+✅ **Done 2026-07-16, and confirmed in-game.** `IPluginFileMapper.mappings()` deploys
+each enabled mod's trio into `Content\Paks\Mods\` as `<Name>_<N>_P.*`, `N` = MO2
+priority + 1, preserving the shared base name.
+
+> ⚠️ **The original plan here was wrong and cost a day.** It said "numeric filename
+> prefix (FF7 Remake pattern)". A prefix is **inert** — UE never reads a leading
+> number. Every prefixed mod ties at Order 103 and the winner falls to a tiebreak
+> favouring the alphabetically *lowest* name, i.e. the opposite of the intent. The FF7
+> Remake plugin is not a precedent: it is a **legacy PakFile** game (its mapper filters
+> `.pak` only and never touches `.utoc`/`.ucas`), where ascending prefixes genuinely do
+> work. Copying it to an IoStore game does not.
+>
+> The lever that works is the chunk-version token between the last two underscores of
+> `*_P.pak`. See [`ARCHITECTURE.md`](ARCHITECTURE.md#load-order).
+
+Evidence: two mods carrying the same package (`ExportBundleData 6f710c98…`), winner
+read from the live in-memory table via TFWWorkbench's `DumpDataTables`.
+`ZZ_ConflictTestB_7_P` (Order 803) beat `ZZ_ConflictTestA_6_P` (Order 703), 48 rows to
+0, *despite* B mounting first and losing the tiebreak. Earlier, with the prefix build:
+`03_AllSkills_P` beat `06_`/`07_`, and `05_A` beat `06_B` — both exactly what "all tied,
+lowest name wins" predicts.
 
 ## Phase 6 — Polish & release
 
@@ -124,6 +148,16 @@ Steam. This is the make-or-break milestone.
    progress save specially, or leave save profiles off?
 6. **Scope** — content paks only, or also UE4SS Lua/Blueprint (LogicMods)? The
    latter pulls in the RE-UE4SS payload and more Binaries\Win64 juggling.
+   ✅ **Answered 2026-07-16: support it.** The full stack (UE4SS `-894` +
+   TFWWorkbench 0.2.1 + bypass + 4 content paks) was run end-to-end under MO2 on the
+   dev box. Two silent prerequisites were missing: Root Builder must be enabled, and
+   TFWWorkbench's `DataTable\` tree must be pre-created in Overwrite (it calls
+   `os.execute` to mkdir, which access-violates under MO2). Both written up in
+   [`UE4SS-TFWWORKBENCH.md`](UE4SS-TFWWORKBENCH.md).
+
+   > **Updated:** the second one is now handled in code — `mappings()` pre-creates the
+   > tree when an enabled mod ships TFWWorkbench, so only the Root Builder prerequisite
+   > remains a manual step.
 
 ## Non-goals (for now)
 
