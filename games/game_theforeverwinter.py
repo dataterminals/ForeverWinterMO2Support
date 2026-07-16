@@ -20,13 +20,22 @@
 #
 # LOAD ORDER
 # ----------
-# Unreal mounts loose paks by filename, so raw mod names give you no real load
-# order. To make MO2's left-pane priority mean something, this plugin does NOT
-# rely on the plain USVFS overlay. Instead it uses IPluginFileMapper: every
-# enabled mod's pak trio is mapped into Content\Paks\Mods\ with a zero-padded
-# numeric prefix derived from MO2 priority (00_, 01_, ...). Higher MO2 priority
-# => higher number => mounts later => wins conflicts. GameDataPath is therefore
+# Unreal gives loose mod paks no meaningful load order of their own. To make MO2's
+# left-pane priority mean something, this plugin does NOT rely on the plain USVFS
+# overlay; it uses IPluginFileMapper to map every enabled mod's pak trio into
+# Content\Paks\Mods\ under a name the engine will act on. GameDataPath is therefore
 # a dead placeholder ("_ROOT"); all real placement happens in mappings().
+#
+# The name is the ONLY channel to the engine, and only one part of it is read: the
+# chunk-version token in "*_<N>_P.pak". Higher MO2 priority => higher N => higher
+# mount Order => wins conflicts. See _iostore_name() for the derivation.
+#
+# v0.2.0 used a zero-padded numeric PREFIX (00_, 01_, ...) on the theory that a
+# higher number mounts later and wins. That was wrong twice over: the engine never
+# reads a leading number (so every mod tied at Order 103), and the tiebreak that
+# actually decided it favours the alphabetically LOWEST name — the exact opposite.
+# Measured 2026-07-16: 03_AllSkills_P beat both 06_ and 07_ fixtures, and 05_A beat
+# 06_B, with all of them carrying the same package. Do not reintroduce a prefix.
 
 import mobase
 from pathlib import Path
@@ -112,6 +121,35 @@ def _is_root_builder_payload(f: Path, mod_path: Path) -> bool:
     except ValueError:
         return False
     return bool(parts) and parts[0].lower() == _ROOT_BUILDER_FOLDER.lower()
+
+
+def _iostore_name(f: Path, priority: int) -> str:
+    """Destination filename encoding MO2 `priority` where the engine will read it.
+
+    UE derives a pak's mount Order from exactly two things, neither of which is a
+    leading number — a numeric *prefix* is inert:
+
+      * the path bucket (everything under Content\\Paks\\ is 3), and
+      * for a pak named "*_P.pak", the token between the LAST TWO underscores:
+        numeric and >= 1 => ChunkVersionNumber = N + 1, otherwise 1.
+        Then PakOrder += 100 * ChunkVersionNumber, and that same value is handed
+        to the IoStore container mount.
+
+    So "03_AllSkills_P.pak" parses "AllSkills" — not numeric — and lands at Order
+    103, exactly like "07_Foo_P.pak". Every mod ties, and the winner falls to a
+    tiebreak that runs opposite to intuition: pak discovery sorts DESCENDING, and
+    both resolvers favour the last-mounted container, so the alphabetically
+    LOWEST filename wins. That is why v0.2.0's prefix appeared to work backwards.
+
+    Appending "_<N>_P" puts our number in the slot the engine parses, so priority
+    is decided by the PRIMARY key and the tiebreak is never consulted. N is
+    1-based because the engine requires >= 1; "_0_P" silently falls back to
+    ChunkVersionNumber 1 and collides with every unnumbered mod. Appending last
+    also means a mod that already ships "Foo_3_P.pak" becomes "Foo_3_5_P.pak" —
+    our N still wins the parse, so no sanitising is needed.
+    """
+    stem = f.stem[:-2] if f.stem.endswith("_P") else f.stem
+    return f"{stem}_{priority + 1}_P{f.suffix}"
 
 
 def _rel_under_folder(f: Path, mod_path: Path, folder: str) -> Optional[Path]:
@@ -228,7 +266,8 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
 
     def _active_mod_paths(self) -> "Iterable[Path]":
         """Enabled mods, in ascending MO2 priority (index 0 = lowest priority,
-        mounts first, loses conflicts)."""
+        loses conflicts). The index becomes N in _iostore_name(), so it must stay
+        ascending: higher index => higher Order => wins."""
         mods_parent = Path(self._organizer.modsPath())
         mod_list = self._organizer.modList()
         for name in mod_list.allModsByProfilePriority():
@@ -285,9 +324,6 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
         if self._tfwworkbench_active(mod_paths):
             self._ensure_tfwworkbench_tree()
 
-        # Zero-padded so the numeric prefix sorts correctly (min width 2).
-        width = max(2, len(str(max(len(mod_paths) - 1, 0))))
-
         result: "List[mobase.Mapping]" = [
             # Ensure the target exists and let Overwrite drop-ins reach it.
             mobase.Mapping(
@@ -299,7 +335,6 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
         ]
 
         for priority, mod_path in enumerate(mod_paths):
-            prefix = str(priority).zfill(width) + "_"
             for f in mod_path.rglob("*"):
                 if not f.is_file() or _is_root_builder_payload(f, mod_path):
                     continue
@@ -314,8 +349,10 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
                         # Blueprint mods: keep the name; UE4SS orders these itself.
                         dest = logic_dir / f.name
                     else:
-                        # Content paks: prefix with MO2 priority to force mount order.
-                        dest = mods_dir / (prefix + f.name)
+                        # Content paks: encode MO2 priority as the pak's chunk
+                        # version, which is the only filename channel the engine
+                        # actually reads. See _iostore_name().
+                        dest = mods_dir / _iostore_name(f, priority)
                 else:
                     # Non-pak payload — e.g. TFWWorkbench reads its DataTable JSON
                     # from Mods\TFWWorkbench\DataTable\. These used to arrive via the
