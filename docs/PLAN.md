@@ -133,13 +133,16 @@ Steam. This is the make-or-break milestone.
    progress save specially, or leave save profiles off?
 6. **Scope** — content paks only, or also UE4SS Lua/Blueprint (LogicMods)? The
    latter pulls in the RE-UE4SS payload and more Binaries\Win64 juggling.
-   ✅ **Answered 2026-07-16: support it — no plugin change needed.** The full stack
-   (UE4SS `-894` + TFWWorkbench 0.2.1 + bypass + 4 content paks) was run end-to-end
-   under MO2 on the dev box. What was missing was documentation of two silent
-   prerequisites, not code: Root Builder must be enabled, and TFWWorkbench's
-   `DataTable\` tree must be pre-created in Overwrite (it calls `os.execute` to
-   mkdir, which access-violates under MO2). Both written up in
+   ✅ **Answered 2026-07-16: support it.** The full stack (UE4SS `-894` +
+   TFWWorkbench 0.2.1 + bypass + 4 content paks) was run end-to-end under MO2 on the
+   dev box. Two silent prerequisites were missing: Root Builder must be enabled, and
+   TFWWorkbench's `DataTable\` tree must be pre-created in Overwrite (it calls
+   `os.execute` to mkdir, which access-violates under MO2). Both written up in
    [`UE4SS-TFWWORKBENCH.md`](UE4SS-TFWWORKBENCH.md).
+
+   > **Updated:** the second one is now handled in code — `mappings()` pre-creates the
+   > tree when an enabled mod ships TFWWorkbench, so only the Root Builder prerequisite
+   > remains a manual step.
 
 ## Non-goals (for now)
 

@@ -114,7 +114,9 @@ If the tree already exists, `GetModDir()` returns it and the `os.execute` path i
 entered. The remaining calls inside `CreateModChildDirs` then degrade to harmless no-ops —
 a crashed `if exist` probe returns falsy, which **skips** the mkdir rather than erroring.
 
-Create this under **MO2's Overwrite folder** (see §3 for why):
+**The plugin does this for you as of v0.2.0** — no manual step. `mappings()` creates the
+tree under **MO2's Overwrite folder** (see §3 for why it must go there) whenever an enabled
+mod ships TFWWorkbench:
 
 ```
 <instance>\overwrite\
@@ -130,7 +132,21 @@ Create this under **MO2's Overwrite folder** (see §3 for why):
       └─ Dumps\             ← output dir, nested INSIDE DataTable\
 ```
 
-PowerShell, against the instance's `overwrite\`:
+Detection keys off the UE4SS mod folder inside a Root Builder-style mod
+(`Root\…\Win64\ue4ss\Mods\TFWWorkbench\`), so the tree is not created for setups that don't
+use TFWWorkbench. Creation is idempotent and failures are swallowed — a read-only Overwrite
+degrades to the old behaviour rather than breaking the mapping.
+
+The list is not arbitrary — it is `Settings.ModChildDirs` in TFWWorkbench's own
+`Scripts/Settings.lua`, mirrored in `_TFWWORKBENCH_CHILD_DIRS`. Re-read it there if a future
+release changes it.
+
+> **Why pre-creation is required and not just faster:** TFWWorkbench snapshots the directory
+> tree *before* creating its own children, so even a tree built successfully on first launch
+> is not read until the **second**. Pre-creating makes the first launch work.
+
+If you need it by hand (older plugin, or a non-MO2 debug), PowerShell against the instance's
+`overwrite\`:
 
 ```powershell
 $ow = "<instance>\overwrite"
@@ -138,13 +154,6 @@ $ow = "<instance>\overwrite"
   "VendorData","WeaponsDetailsData","WeaponPartStatsData","Dumps") |
   ForEach-Object { New-Item -ItemType Directory -Force -Path "$ow\TFWWorkbench\DataTable\$_" }
 ```
-
-The list is not arbitrary — it is `Settings.ModChildDirs` in TFWWorkbench's own
-`Scripts/Settings.lua`. Read it there if a future release changes it.
-
-> **Why pre-creation is required and not just faster:** TFWWorkbench snapshots the directory
-> tree *before* creating its own children, so even a tree built successfully on first launch
-> is not read until the **second**. Pre-creating makes the first launch work.
 
 ---
 

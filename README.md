@@ -45,12 +45,12 @@ mod id 57). If you also want Blueprint/Lua mods, install a UE5.4-capable
 **RE-UE4SS** build into the same `Binaries\Win64` folder.
 
 > **Running UE4SS / TFWWorkbench?** Read
-> [`docs/UE4SS-TFWWORKBENCH.md`](docs/UE4SS-TFWWORKBENCH.md) first. Two prerequisites
-> are non-obvious and fail either silently or with a misleading error: **Root Builder
-> must be enabled** (older advice in `docs/PLAN.md` said to disable it — correct for
-> content paks only, wrong once UE4SS is in play), and **TFWWorkbench's `DataTable\`
-> tree must be pre-created in Overwrite** because it cannot create its own directories
-> under MO2. Verified working 2026-07-16.
+> [`docs/UE4SS-TFWWORKBENCH.md`](docs/UE4SS-TFWWORKBENCH.md) first. **Root Builder must
+> be enabled** — older advice in `docs/PLAN.md` said to disable it, which is correct for
+> content paks only and wrong once UE4SS is in play; with it off, UE4SS and TFWWorkbench
+> deploy nothing and log nothing. TFWWorkbench also cannot create its own directories
+> under MO2, but as of v0.2.0 the plugin pre-creates its `DataTable\` tree in Overwrite
+> for you. Verified working 2026-07-16.
 
 ---
 

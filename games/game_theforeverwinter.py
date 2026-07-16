@@ -52,6 +52,47 @@ _IOSTORE_EXTS = (".pak", ".utoc", ".ucas")
 # plugin creates it — it stays empty and can be deleted any time.
 _DATA_PLACEHOLDER = "_ROOT"
 
+# TFWWorkbench keeps its JSON data in a tree under Content\Paks\Mods\TFWWorkbench\
+# and builds that tree itself with os.execute("mkdir ..."). The cmd.exe child that
+# spawns access-violates (0xC0000005) under MO2, so FindOrCreateModDir() returns
+# nil and the failure surfaces frames later as "attempt to index a nil value".
+# Pre-creating the tree makes GetModDir() succeed, so the os.execute path is never
+# entered at all.
+#
+# It has to live in Overwrite: mappings() maps Overwrite wholesale onto Mods\, but
+# filters everything else to _IOSTORE_EXTS, so a mod carrying only empty
+# directories would map nothing. TFWWorkbench also snapshots the tree before
+# creating children, so a tree it built itself is not read until the *next* launch
+# — pre-creation is what makes the first launch work.
+#
+# Source of truth for this list is Settings.ModChildDirs in TFWWorkbench's own
+# Scripts/Settings.lua; re-read it there if a future release changes it.
+_TFWWORKBENCH_DIR = "TFWWorkbench"
+# Singular: upstream's README says "DataTables", but its code says otherwise.
+_TFWWORKBENCH_DATA_PARENT = "DataTable"
+_TFWWORKBENCH_CHILD_DIRS = (
+    "Item",
+    "ItemValue",
+    "CraftingRecipe",
+    "CraftingGroup",
+    "VendorData",
+    "WeaponsDetailsData",
+    "WeaponPartStatsData",
+    "Dumps",
+)
+
+# Where a UE4SS Lua mod sits inside a Root Builder-style mod. Used to detect
+# whether TFWWorkbench is actually present before creating its tree.
+_UE4SS_MODS_REL = (
+    "Root",
+    "Windows",
+    "ForeverWinter",
+    "Binaries",
+    "Win64",
+    "ue4ss",
+    "Mods",
+)
+
 
 class TheForeverWinterModDataChecker(BasicModDataChecker):
     """Validates archive layout and strips junk. Placement into the game is done
@@ -159,6 +200,26 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
             if mod_list.state(name) & mobase.ModState.ACTIVE:
                 yield mods_parent / name
 
+    def _tfwworkbench_active(self, mod_paths: "Iterable[Path]") -> bool:
+        """True if an enabled mod ships the TFWWorkbench UE4SS mod."""
+        return any(
+            p.joinpath(*_UE4SS_MODS_REL, _TFWWORKBENCH_DIR).is_dir() for p in mod_paths
+        )
+
+    def _ensure_tfwworkbench_tree(self) -> None:
+        """Pre-create TFWWorkbench's data tree in Overwrite so it never shells out
+        to mkdir. See _TFWWORKBENCH_* above for why this is necessary."""
+        base = (
+            Path(self._organizer.overwritePath())
+            / _TFWWORKBENCH_DIR
+            / _TFWWORKBENCH_DATA_PARENT
+        )
+        for child in _TFWWORKBENCH_CHILD_DIRS:
+            try:
+                (base / child).mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
+
     def mappings(self) -> "List[mobase.Mapping]":
         # gamePath can be unset during early MO2 refreshes — do nothing then
         # (also avoids creating _ROOT in the wrong place).
@@ -177,6 +238,9 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
         mods_dir = self._paks_dir() / _MODS_SUBFOLDER
         logic_dir = self._paks_dir() / _LOGICMODS_SUBFOLDER
         mod_paths = list(self._active_mod_paths())
+
+        if self._tfwworkbench_active(mod_paths):
+            self._ensure_tfwworkbench_tree()
 
         # Zero-padded so the numeric prefix sorts correctly (min width 2).
         width = max(2, len(str(max(len(mod_paths) - 1, 0))))
