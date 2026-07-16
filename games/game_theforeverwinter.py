@@ -30,7 +30,7 @@
 
 import mobase
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from PyQt6.QtCore import QFileInfo
 
@@ -81,10 +81,16 @@ _TFWWORKBENCH_CHILD_DIRS = (
     "Dumps",
 )
 
+# Root Builder's folder. A mod puts everything destined for the game root under
+# Root\, and Root Builder — not this plugin — deploys it. We must skip that whole
+# subtree: it contains its own ue4ss\Mods\ folder, which would otherwise be
+# mistaken for a content-pak Mods\ folder and copied into Content\Paks\Mods\.
+_ROOT_BUILDER_FOLDER = "Root"
+
 # Where a UE4SS Lua mod sits inside a Root Builder-style mod. Used to detect
 # whether TFWWorkbench is actually present before creating its tree.
 _UE4SS_MODS_REL = (
-    "Root",
+    _ROOT_BUILDER_FOLDER,
     "Windows",
     "ForeverWinter",
     "Binaries",
@@ -92,6 +98,35 @@ _UE4SS_MODS_REL = (
     "ue4ss",
     "Mods",
 )
+
+
+def _is_root_builder_payload(f: Path, mod_path: Path) -> bool:
+    """True if `f` lives under the mod's Root\\ folder, which Root Builder owns.
+
+    Load-bearing: a Root-style mod (RE-UE4SS, TFWWorkbench, the bypass) carries
+    Root\\...\\Win64\\ue4ss\\Mods\\, and without this check that inner Mods\\ reads
+    as a content-pak Mods\\ folder — dumping UE4SS's Lua tree into Content\\Paks\\Mods\\.
+    """
+    try:
+        parts = f.relative_to(mod_path).parts
+    except ValueError:
+        return False
+    return bool(parts) and parts[0].lower() == _ROOT_BUILDER_FOLDER.lower()
+
+
+def _rel_under_folder(f: Path, mod_path: Path, folder: str) -> Optional[Path]:
+    """Path of `f` relative to the first `folder` segment inside `mod_path`, or
+    None if it isn't under one. Keeps mod-root files (meta.ini and friends) out
+    of the game, and gives non-pak payloads a structure-preserving destination."""
+    try:
+        parts = f.relative_to(mod_path).parts
+    except ValueError:
+        return None
+    for i, part in enumerate(parts):
+        if part.lower() == folder.lower():
+            rest = parts[i + 1 :]
+            return Path(*rest) if rest else None
+    return None
 
 
 class TheForeverWinterModDataChecker(BasicModDataChecker):
@@ -258,15 +293,36 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
         for priority, mod_path in enumerate(mod_paths):
             prefix = str(priority).zfill(width) + "_"
             for f in mod_path.rglob("*"):
-                if not f.is_file() or f.suffix.lower() not in _IOSTORE_EXTS:
+                if not f.is_file() or _is_root_builder_payload(f, mod_path):
                     continue
-                parts_lower = [p.lower() for p in f.parts]
-                if _LOGICMODS_SUBFOLDER.lower() in parts_lower:
-                    # Blueprint mods: keep the name; UE4SS orders these itself.
-                    dest = logic_dir / f.name
+                is_logic = _LOGICMODS_SUBFOLDER.lower() in (
+                    p.lower() for p in f.parts
+                )
+                base = logic_dir if is_logic else mods_dir
+                folder = _LOGICMODS_SUBFOLDER if is_logic else _MODS_SUBFOLDER
+
+                if f.suffix.lower() in _IOSTORE_EXTS:
+                    if is_logic:
+                        # Blueprint mods: keep the name; UE4SS orders these itself.
+                        dest = logic_dir / f.name
+                    else:
+                        # Content paks: prefix with MO2 priority to force mount order.
+                        dest = mods_dir / (prefix + f.name)
                 else:
-                    # Content paks: prefix with MO2 priority to force mount order.
-                    dest = mods_dir / (prefix + f.name)
+                    # Non-pak payload — e.g. TFWWorkbench reads its DataTable JSON
+                    # from Mods\TFWWorkbench\DataTable\. These used to arrive via the
+                    # plain overlay when GameDataPath was Content\Paks; now that all
+                    # placement runs through here, skipping them would silently
+                    # inert any mod that ships data alongside its pak.
+                    #
+                    # No priority prefix: these carry their own ordering convention
+                    # (HeavyRifleRebalanceFix ships 005_*.json), and renaming them
+                    # would fight it. Structure is preserved instead, so MO2
+                    # priority only breaks ties — later mods map last and win.
+                    rel = _rel_under_folder(f, mod_path, folder)
+                    if rel is None:
+                        continue  # mod-root file (meta.ini, …) — not game content
+                    dest = base / rel
                 result.append(mobase.Mapping(str(f), str(dest), False))
 
         return result

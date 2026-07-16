@@ -174,15 +174,21 @@ mobase.Mapping(
 Overwrite is mapped **as a whole directory** onto `Content\Paks\Mods\`, so arbitrary
 structure inside it reaches the game.
 
-A normal MO2 mod **will not work** for this. The same `mappings()` filters to pak trios:
+A normal MO2 mod cannot supply the **empty tree**, because `mappings()` maps *files* — an
+empty directory has none, so a dirs-only mod maps nothing at all, silently. Overwrite is a
+directory mapping, which is why it is the only route for empty structure.
 
-```python
-if not f.is_file() or f.suffix.lower() not in _IOSTORE_EXTS:
-    continue
-```
-
-`_IOSTORE_EXTS` is `(".pak", ".utoc", ".ucas")` — so a mod containing only empty directories
-maps **nothing at all**, silently. Overwrite is the only route for non-pak structure.
+> **Files are a different matter (fixed 2026-07-16).** `mappings()` used to filter
+> everything to `_IOSTORE_EXTS` = `(".pak", ".utoc", ".ucas")` and silently drop the rest.
+> That inerted any mod shipping data next to its pak — HeavyRifleRebalanceFix's five
+> `Mods\TFWWorkbench\DataTable\**\*.json` never reached the game, so its pak loaded while
+> its rebalance did nothing. Non-pak files under a mod's `Mods\` / `LogicMods\` folder are
+> now mapped structurally, keeping their names (they carry their own `005_` ordering, and a
+> priority prefix would fight it). A mod **can** now ship DataTable JSON normally.
+>
+> Anything under a mod's `Root\` folder is skipped entirely — that is Root Builder's, and
+> a Root-style mod's own `…\Win64\ue4ss\Mods\` would otherwise be mistaken for a
+> content-pak `Mods\` folder and copied into `Content\Paks\Mods\`.
 
 Consequence worth stating plainly: **this tree is not junk in Overwrite — do not "clean" it.**
 That inverts the usual MO2 advice, and it is a direct result of this plugin's design.
