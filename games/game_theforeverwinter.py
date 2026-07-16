@@ -37,12 +37,13 @@
 #   tiebreak. Only Order can produce that, so the chain MO2 priority -> _<N>_P ->
 #   ChunkVersionNumber -> PakOrder -> IoStore order is real on this binary.
 #
-# v0.2.0 used a zero-padded numeric PREFIX (00_, 01_, ...) on the theory that a
-# higher number mounts later and wins. It was not backwards, it was INERT: the engine
-# never reads a leading number, so every mod tied at Order 103 and the winner fell to
-# a tiebreak favouring the alphabetically LOWEST name. Measured the same day:
-# 03_AllSkills_P beat both 06_ and 07_ fixtures, and 05_A beat 06_B. The prefix
-# controlled nothing while appearing to. DO NOT REINTRODUCE A PREFIX.
+# An earlier development build (never released) used a zero-padded numeric PREFIX
+# (00_, 01_, ...) on the theory that a higher number mounts later and wins. It was not
+# backwards, it was INERT: the engine never reads a leading number, so every mod tied at
+# Order 103 and the winner fell to a tiebreak favouring the alphabetically LOWEST name.
+# Measured the same day: 03_AllSkills_P beat both 06_ and 07_ fixtures, and 05_A beat
+# 06_B. The prefix controlled nothing while appearing to. Most community advice for UE
+# pak load order recommends exactly this, and it does not work. DO NOT REINTRODUCE IT.
 
 import mobase
 from pathlib import Path
@@ -146,7 +147,8 @@ def _iostore_name(f: Path, priority: int) -> str:
     103, exactly like "07_Foo_P.pak". Every mod ties, and the winner falls to a
     tiebreak that runs opposite to intuition: pak discovery sorts DESCENDING, and
     both resolvers favour the last-mounted container, so the alphabetically
-    LOWEST filename wins. That is why v0.2.0's prefix appeared to work backwards.
+    LOWEST filename wins. That is why the old prefix scheme appeared to work
+    backwards — it was not ordering anything; the tiebreak was.
 
     Appending "_<N>_P" puts our number in the slot the engine parses, so priority
     is decided by the PRIMARY key and the tiebreak is never consulted. N is
@@ -214,9 +216,10 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
     Description = (
         "Adds The Forever Winter (Fun Dog Studios, UE5) support to Mod "
         "Organizer 2. Manages content pak mods (.pak/.utoc/.ucas) and maps "
-        "them into Content\\Paks\\Mods with a load-order prefix driven by MO2 "
-        "priority. Requires a manually-installed Signature Bypass in "
-        "Binaries\\Win64 — see the README."
+        "them into Content\\Paks\\Mods with load order driven by MO2 priority "
+        "(encoded as each pak's chunk-version token, the only part of a pak "
+        "filename Unreal reads). Requires a manually-installed Signature "
+        "Bypass in Binaries\\Win64 — see the README."
     )
 
     GameName = "The Forever Winter"
@@ -341,6 +344,8 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
             )
         ]
 
+        mapped_into_logic = False
+
         for priority, mod_path in enumerate(mod_paths):
             for f in mod_path.rglob("*"):
                 if not f.is_file() or _is_root_builder_payload(f, mod_path):
@@ -348,6 +353,7 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
                 is_logic = _LOGICMODS_SUBFOLDER.lower() in (
                     p.lower() for p in f.parts
                 )
+                mapped_into_logic = mapped_into_logic or is_logic
                 base = logic_dir if is_logic else mods_dir
                 folder = _LOGICMODS_SUBFOLDER if is_logic else _MODS_SUBFOLDER
 
@@ -376,6 +382,19 @@ class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
                         continue  # mod-root file (meta.ini, …) — not game content
                     dest = base / rel
                 result.append(mobase.Mapping(str(f), str(dest), False))
+
+        # LogicMods\ must exist on disk before USVFS links anything into it: it refuses a
+        # file link whose parent it cannot resolve (assertPathExists -> ERROR_PATH_NOT_FOUND),
+        # and MO2 discards that return value, so a Blueprint mod would vanish in silence.
+        # Mods\ escapes this only because the Overwrite entry above is a *directory* mapping,
+        # which registers the node; LogicMods\ has none, and the game ships neither folder.
+        # Tracked as we emit, so it is created if and only if something actually lands
+        # there — a content-paks-only setup gets no stray directory.
+        if mapped_into_logic:
+            try:
+                logic_dir.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
 
         return result
 
