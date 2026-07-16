@@ -220,7 +220,7 @@ All **7** collect folders on the *first* launch is the signal the pre-create wor
 
 | Trap | Reality |
 |---|---|
-| Grepping `Starting C++ mod` to prove main.dll loaded | **Appears in ZERO logs**, including provably-working ones. Guaranteed false negative. Use **`[TFWWorkbench] Registered Lua functions for mod`** — no `[Lua]` prefix ⇒ emitted by `main.dll`. |
+| Grepping `Starting C++ mod` to prove main.dll loaded | **False negative under MO2.** That line is emitted only when the mod is started from `mods.txt`. TFWWorkbench ships a per-mod `enabled.txt` and is absent from the stock `mods.txt`, so it starts on the enabled.txt path and logs `Mod 'TFWWorkbench' has enabled.txt, starting mod.` instead — never `Starting C++ mod`. Use **`[TFWWorkbench] Registered Lua functions for mod`**: no `[Lua]` prefix ⇒ it is `main.dll`'s own output, and it is mechanism-independent. |
 | Grepping bare `0x7f` for the load error | Matches inside every `0x7ff6…` address the scanner prints. Search the bracketed **`[0x7f]`**. |
 | `[PS] Failed to find FUObjectHashTables::Get()` | Benign scanner noise — present in known-good logs. |
 | `DumpFile: …json` lines ⇒ files were written | No. That is the `DataTable:new` **constructor** announcing a path. The write is in `DumpDataTable()`, which the normal flow never calls. 20 `DumpFile:` lines and 0 files on disk is **correct**. |
