@@ -17,3 +17,7 @@ Thumbs.db
 *.utoc
 *.ucas
 *.sig
+
+# Locally-zipped copies of the plugin. The source of truth is games/*.py;
+# a packaged archive belongs on a release, not in the tree.
+games/*.zip
