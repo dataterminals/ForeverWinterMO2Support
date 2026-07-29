@@ -21,3 +21,8 @@ Thumbs.db
 # Locally-zipped copies of the plugin. The source of truth is games/*.py;
 # a packaged archive belongs on a release, not in the tree.
 games/*.zip
+
+# dist/ is a local staging folder for uploads (Nexus etc.), not a build output.
+# It holds release assets pulled back down with `gh release download`; every zip
+# in it is reproducible from a tag with `git archive`.
+dist/
