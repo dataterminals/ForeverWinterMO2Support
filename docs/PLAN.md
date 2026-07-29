@@ -3,7 +3,7 @@
 Where this stands and what it takes to get from "plugin loads" to "mods
 demonstrably work through MO2, with load order and a clean install story."
 
-## Current state (v0.1.0)
+## v0.1.0 — initial validation
 
 - [x] Repo scaffolded; plugin authored against the locally-installed
       `basic_games` API (MO2 2.5.2, PyQt6).

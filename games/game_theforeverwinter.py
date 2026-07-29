@@ -212,7 +212,7 @@ class TheForeverWinterModDataChecker(BasicModDataChecker):
 class TheForeverWinterGame(BasicGame, mobase.IPluginFileMapper):
     Name = "The Forever Winter Support Plugin"
     Author = "dataterminals"
-    Version = "0.2.0"
+    Version = "0.2.1"
     Description = (
         "Adds The Forever Winter (Fun Dog Studios, UE5) support to Mod "
         "Organizer 2. Manages content pak mods (.pak/.utoc/.ucas) and maps "

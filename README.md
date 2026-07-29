@@ -11,13 +11,19 @@ manage TFW content-pak mods through its virtual file system, so you get
 profiles, one-click enable/disable, and non-destructive installs without ever
 copying files into the game folder.
 
-> **Status:** `v0.1.0` — **validated working (2026-07-12).** A content asset-
-> replacement mod enabled in MO2 renders in-game: detect → install to `Mods\` →
-> shipping-exe launch → signature bypass → USVFS overlay → in-game. The shipping
-> exe launches directly under MO2 (EOS does not block it). Known rough edge: if
-> you have the **Root Builder** plugin installed, it can make the first launch
-> very slow by caching the whole game folder — see
-> [`docs/PLAN.md`](docs/PLAN.md#phase-4--binaries-payload-via-root-builder-optional-quality-of-life).
+> **Status:** `v0.2.1` — **validated working.** A content asset-replacement mod
+> enabled in MO2 renders in-game: detect → install to `Mods\` → shipping-exe
+> launch → signature bypass → USVFS overlay → in-game (2026-07-12). The shipping
+> exe launches directly under MO2 — EOS does not block it. MO2's left-pane
+> priority drives pak load order, confirmed in-game 2026-07-16, and the full
+> UE4SS + TFWWorkbench stack ran end-to-end under MO2 the same day.
+>
+> **On Root Builder:** if you run UE4SS, TFWWorkbench, or a packaged Signature
+> Bypass, Root Builder must be **enabled** — those are `Root\` mods and deploy
+> nothing without it, silently and with no error. It does cache the game folder
+> on first build, which is slow; the fix is a `Content\Paks` exclusion, not
+> disabling the plugin. See
+> [`docs/UE4SS-TFWWORKBENCH.md`](docs/UE4SS-TFWWORKBENCH.md).
 
 ---
 
